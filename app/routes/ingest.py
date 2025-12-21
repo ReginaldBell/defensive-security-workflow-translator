@@ -1,0 +1,57 @@
+
+from fastapi import APIRouter, HTTPException
+from typing import List, Dict, Any
+from uuid import uuid4
+from datetime import datetime
+import json
+import os
+from pathlib import Path
+from app.services.normalization import normalize_run
+from app.services.detection import detect_run
+
+router = APIRouter(prefix="/ingest", tags=["ingest"])
+
+RUNS_DIR = "runs"
+
+
+@router.post("/")
+def ingest_events(events: List[Dict[str, Any]]):
+    if not events:
+        raise HTTPException(status_code=400, detail="No events provided")
+
+    run_id = f"run-{uuid4().hex}"
+    run_path = os.path.join(RUNS_DIR, run_id)
+    os.makedirs(run_path, exist_ok=True)
+
+    raw_path = os.path.join(run_path, "raw.json")
+    meta_path = os.path.join(run_path, "meta.json")
+
+    with open(raw_path, "w") as f:
+        json.dump(events, f, indent=2)
+
+    meta = {
+        "created_at": datetime.utcnow().isoformat(),
+        "event_count": len(events)
+    }
+
+
+    with open(meta_path, "w") as f:
+        json.dump(meta, f, indent=2)
+
+    # Phase 2: Generate normalized artifacts (best effort, does not affect response)
+
+    try:
+        normalize_run(run_id=run_id, runs_root=Path("runs"))
+    except Exception:
+        pass
+
+    # Phase 3: Generate detection artifacts (best effort, does not affect response)
+    try:
+        detect_run(run_id=run_id, runs_root=Path("runs"))
+    except Exception:
+        pass
+
+    return {
+        "run_id": run_id,
+        "event_count": len(events)
+    }

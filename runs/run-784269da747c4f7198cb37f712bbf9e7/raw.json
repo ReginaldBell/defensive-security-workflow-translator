@@ -1,0 +1,52 @@
+[
+  {
+    "timestamp": "2025-12-21T06:00:00Z",
+    "source_ip": "203.0.113.10",
+    "username": "alice",
+    "event_type": "login_attempt",
+    "result": "failure",
+    "reason": "bad_password",
+    "user_agent": "Mozilla/5.0",
+    "source": "demo"
+  },
+  {
+    "timestamp": "2025-12-21T06:00:05Z",
+    "source_ip": "203.0.113.10",
+    "username": "alice",
+    "event_type": "login_attempt",
+    "result": "failure",
+    "reason": "bad_password",
+    "user_agent": "Mozilla/5.0",
+    "source": "demo"
+  },
+  {
+    "timestamp": "2025-12-21T06:00:10Z",
+    "source_ip": "203.0.113.10",
+    "username": "alice",
+    "event_type": "login_attempt",
+    "result": "failure",
+    "reason": "bad_password",
+    "user_agent": "Mozilla/5.0",
+    "source": "demo"
+  },
+  {
+    "timestamp": "2025-12-21T06:00:15Z",
+    "source_ip": "203.0.113.10",
+    "username": "alice",
+    "event_type": "login_attempt",
+    "result": "failure",
+    "reason": "bad_password",
+    "user_agent": "Mozilla/5.0",
+    "source": "demo"
+  },
+  {
+    "timestamp": "2025-12-21T06:00:20Z",
+    "source_ip": "203.0.113.10",
+    "username": "alice",
+    "event_type": "login_attempt",
+    "result": "failure",
+    "reason": "bad_password",
+    "user_agent": "Mozilla/5.0",
+    "source": "demo"
+  }
+]

@@ -1,0 +1,377 @@
+[
+  {
+    "incident_id": "inc_70a2fdaedf385bdca4f71bd7",
+    "type": "brute_force",
+    "mitre_technique": "T1110",
+    "severity": "low",
+    "confidence": "70",
+    "summary": "Possible brute-force against 'alice' from 203.0.113.10: 6 failed logins within 60s.",
+    "recommended_actions": [
+      "Review authentication logs for the affected account and source IP.",
+      "Check if the account exists and whether any successful logins followed.",
+      "Consider temporary rate-limiting, account lockout, or IP blocking per policy.",
+      "If unauthorized access is suspected, reset credentials and review MFA status."
+    ],
+    "subject": {
+      "source_ip": "203.0.113.10",
+      "username": "alice"
+    },
+    "evidence": {
+      "window_start": "2025-12-21T06:00:00Z",
+      "window_end": "2025-12-21T06:00:25Z",
+      "counts": {
+        "failures": 6
+      },
+      "timeline": [
+        {
+          "timestamp": "2025-12-21T06:00:00Z",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password"
+        },
+        {
+          "timestamp": "2025-12-21T06:00:05Z",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password"
+        },
+        {
+          "timestamp": "2025-12-21T06:00:10Z",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password"
+        },
+        {
+          "timestamp": "2025-12-21T06:00:15Z",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password"
+        },
+        {
+          "timestamp": "2025-12-21T06:00:20Z",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password"
+        },
+        {
+          "timestamp": "2025-12-21T06:00:25Z",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password"
+        }
+      ],
+      "events": [
+        {
+          "timestamp": "2025-12-21T06:00:00Z",
+          "source_ip": "203.0.113.10",
+          "username": "alice",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "user_agent": "Mozilla/5.0",
+          "source": "demo"
+        },
+        {
+          "timestamp": "2025-12-21T06:00:05Z",
+          "source_ip": "203.0.113.10",
+          "username": "alice",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "user_agent": "Mozilla/5.0",
+          "source": "demo"
+        },
+        {
+          "timestamp": "2025-12-21T06:00:10Z",
+          "source_ip": "203.0.113.10",
+          "username": "alice",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "user_agent": "Mozilla/5.0",
+          "source": "demo"
+        },
+        {
+          "timestamp": "2025-12-21T06:00:15Z",
+          "source_ip": "203.0.113.10",
+          "username": "alice",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "user_agent": "Mozilla/5.0",
+          "source": "demo"
+        },
+        {
+          "timestamp": "2025-12-21T06:00:20Z",
+          "source_ip": "203.0.113.10",
+          "username": "alice",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "user_agent": "Mozilla/5.0",
+          "source": "demo"
+        },
+        {
+          "timestamp": "2025-12-21T06:00:25Z",
+          "source_ip": "203.0.113.10",
+          "username": "alice",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "user_agent": "Mozilla/5.0",
+          "source": "demo"
+        }
+      ]
+    }
+  },
+  {
+    "incident_id": "inc_7224e67e3a3f49a3363d0b21",
+    "type": "brute_force",
+    "mitre_technique": "T1110",
+    "severity": "low",
+    "confidence": "70",
+    "summary": "Possible brute-force against 'alice' from 203.0.113.10: 5 failed logins within 60s.",
+    "recommended_actions": [
+      "Review authentication logs for the affected account and source IP.",
+      "Check if the account exists and whether any successful logins followed.",
+      "Consider temporary rate-limiting, account lockout, or IP blocking per policy.",
+      "If unauthorized access is suspected, reset credentials and review MFA status."
+    ],
+    "subject": {
+      "source_ip": "203.0.113.10",
+      "username": "alice"
+    },
+    "evidence": {
+      "window_start": "2025-12-21T06:00:00Z",
+      "window_end": "2025-12-21T06:00:20Z",
+      "counts": {
+        "failures": 5
+      },
+      "timeline": [
+        {
+          "timestamp": "2025-12-21T06:00:00Z",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password"
+        },
+        {
+          "timestamp": "2025-12-21T06:00:05Z",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password"
+        },
+        {
+          "timestamp": "2025-12-21T06:00:10Z",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password"
+        },
+        {
+          "timestamp": "2025-12-21T06:00:15Z",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password"
+        },
+        {
+          "timestamp": "2025-12-21T06:00:20Z",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password"
+        }
+      ],
+      "events": [
+        {
+          "timestamp": "2025-12-21T06:00:00Z",
+          "source_ip": "203.0.113.10",
+          "username": "alice",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "user_agent": "Mozilla/5.0",
+          "source": "demo"
+        },
+        {
+          "timestamp": "2025-12-21T06:00:05Z",
+          "source_ip": "203.0.113.10",
+          "username": "alice",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "user_agent": "Mozilla/5.0",
+          "source": "demo"
+        },
+        {
+          "timestamp": "2025-12-21T06:00:10Z",
+          "source_ip": "203.0.113.10",
+          "username": "alice",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "user_agent": "Mozilla/5.0",
+          "source": "demo"
+        },
+        {
+          "timestamp": "2025-12-21T06:00:15Z",
+          "source_ip": "203.0.113.10",
+          "username": "alice",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "user_agent": "Mozilla/5.0",
+          "source": "demo"
+        },
+        {
+          "timestamp": "2025-12-21T06:00:20Z",
+          "source_ip": "203.0.113.10",
+          "username": "alice",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "user_agent": "Mozilla/5.0",
+          "source": "demo"
+        }
+      ]
+    }
+  },
+  {
+    "incident_id": "inc_c7f5753dbc54f17fcc03a362",
+    "type": "brute_force",
+    "mitre_technique": "T1110",
+    "severity": "low",
+    "confidence": "70",
+    "summary": "Possible brute-force against 'alice' from 203.0.113.10: 7 failed logins within 60s.",
+    "recommended_actions": [
+      "Review authentication logs for the affected account and source IP.",
+      "Check if the account exists and whether any successful logins followed.",
+      "Consider temporary rate-limiting, account lockout, or IP blocking per policy.",
+      "If unauthorized access is suspected, reset credentials and review MFA status."
+    ],
+    "subject": {
+      "source_ip": "203.0.113.10",
+      "username": "alice"
+    },
+    "evidence": {
+      "window_start": "2025-12-21T06:00:00Z",
+      "window_end": "2025-12-21T06:00:30Z",
+      "counts": {
+        "failures": 7
+      },
+      "timeline": [
+        {
+          "timestamp": "2025-12-21T06:00:00Z",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password"
+        },
+        {
+          "timestamp": "2025-12-21T06:00:05Z",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password"
+        },
+        {
+          "timestamp": "2025-12-21T06:00:10Z",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password"
+        },
+        {
+          "timestamp": "2025-12-21T06:00:15Z",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password"
+        },
+        {
+          "timestamp": "2025-12-21T06:00:20Z",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password"
+        },
+        {
+          "timestamp": "2025-12-21T06:00:25Z",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password"
+        },
+        {
+          "timestamp": "2025-12-21T06:00:30Z",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password"
+        }
+      ],
+      "events": [
+        {
+          "timestamp": "2025-12-21T06:00:00Z",
+          "source_ip": "203.0.113.10",
+          "username": "alice",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "user_agent": "Mozilla/5.0",
+          "source": "demo"
+        },
+        {
+          "timestamp": "2025-12-21T06:00:05Z",
+          "source_ip": "203.0.113.10",
+          "username": "alice",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "user_agent": "Mozilla/5.0",
+          "source": "demo"
+        },
+        {
+          "timestamp": "2025-12-21T06:00:10Z",
+          "source_ip": "203.0.113.10",
+          "username": "alice",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "user_agent": "Mozilla/5.0",
+          "source": "demo"
+        },
+        {
+          "timestamp": "2025-12-21T06:00:15Z",
+          "source_ip": "203.0.113.10",
+          "username": "alice",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "user_agent": "Mozilla/5.0",
+          "source": "demo"
+        },
+        {
+          "timestamp": "2025-12-21T06:00:20Z",
+          "source_ip": "203.0.113.10",
+          "username": "alice",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "user_agent": "Mozilla/5.0",
+          "source": "demo"
+        },
+        {
+          "timestamp": "2025-12-21T06:00:25Z",
+          "source_ip": "203.0.113.10",
+          "username": "alice",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "user_agent": "Mozilla/5.0",
+          "source": "demo"
+        },
+        {
+          "timestamp": "2025-12-21T06:00:30Z",
+          "source_ip": "203.0.113.10",
+          "username": "alice",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "user_agent": "Mozilla/5.0",
+          "source": "demo"
+        }
+      ]
+    }
+  }
+]
