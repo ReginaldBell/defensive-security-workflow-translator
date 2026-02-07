@@ -14,7 +14,7 @@ class IncidentSubjectNew(BaseModel):
 
 class IncidentNew(BaseModel):
     incident_id: str
-    type: str  # "Brute Force" | "Credential Abuse"
+    type: str  # "brute_force" | "credential_abuse"
     mitre_technique: str = "T1110"
     severity: str  # medium | high | critical
     confidence: str  # low | medium | high

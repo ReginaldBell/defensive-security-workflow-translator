@@ -1,0 +1,92 @@
+[
+  {
+    "timestamp": "2026-01-26T13:02:11Z",
+    "event_type": "authentication_attempt",
+    "result": "failure",
+    "username": "admin",
+    "source_ip": "203.0.113.45",
+    "user_agent": "curl/7.81.0",
+    "service": "ssh"
+  },
+  {
+    "timestamp": "2026-01-26T13:02:18Z",
+    "event_type": "authentication_attempt",
+    "result": "failure",
+    "username": "admin",
+    "source_ip": "203.0.113.45",
+    "user_agent": "curl/7.81.0",
+    "service": "ssh"
+  },
+  {
+    "timestamp": "2026-01-26T13:02:25Z",
+    "event_type": "authentication_attempt",
+    "result": "failure",
+    "username": "admin",
+    "source_ip": "203.0.113.45",
+    "user_agent": "curl/7.81.0",
+    "service": "ssh"
+  },
+  {
+    "timestamp": "2026-01-26T13:03:02Z",
+    "event_type": "authentication_attempt",
+    "result": "success",
+    "username": "admin",
+    "source_ip": "203.0.113.45",
+    "user_agent": "curl/7.81.0",
+    "service": "ssh"
+  },
+  {
+    "timestamp": "2026-01-26T13:07:41Z",
+    "event_type": "authentication_attempt",
+    "result": "failure",
+    "username": "j.smith",
+    "source_ip": "198.51.100.77",
+    "user_agent": "Mozilla/5.0",
+    "service": "web"
+  },
+  {
+    "timestamp": "2026-01-26T13:07:49Z",
+    "event_type": "authentication_attempt",
+    "result": "failure",
+    "username": "j.smith",
+    "source_ip": "198.51.100.77",
+    "user_agent": "Mozilla/5.0",
+    "service": "web"
+  },
+  {
+    "timestamp": "2026-01-26T13:08:10Z",
+    "event_type": "authentication_attempt",
+    "result": "failure",
+    "username": "j.smith",
+    "source_ip": "198.51.100.77",
+    "user_agent": "Mozilla/5.0",
+    "service": "web"
+  },
+  {
+    "timestamp": "2026-01-26T13:12:55Z",
+    "event_type": "authentication_attempt",
+    "result": "success",
+    "username": "j.smith",
+    "source_ip": "198.51.100.77",
+    "user_agent": "Mozilla/5.0",
+    "service": "web"
+  },
+  {
+    "timestamp": "2026-01-26T13:20:11Z",
+    "event_type": "authentication_attempt",
+    "result": "failure",
+    "username": "backup_svc",
+    "source_ip": "10.0.0.15",
+    "user_agent": "python-requests/2.31",
+    "service": "api"
+  },
+  {
+    "timestamp": "2026-01-26T13:20:18Z",
+    "event_type": "authentication_attempt",
+    "result": "failure",
+    "username": "backup_svc",
+    "source_ip": "10.0.0.15",
+    "user_agent": "python-requests/2.31",
+    "service": "api"
+  }
+]

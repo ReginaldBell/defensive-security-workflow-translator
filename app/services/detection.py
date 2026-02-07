@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from __future__ import annotations
+
 import hashlib
 import json
 from collections import deque
@@ -12,11 +14,71 @@ from app.schemas.incident_new import IncidentNew as Incident
 
 
 MITRE_T1110 = "T1110"
+MITRE_T1110_003 = "T1110.003"
 
 WINDOW_SECONDS = 60
 BRUTE_FORCE_FAILURE_THRESHOLD = 5
 CRED_ABUSE_DISTINCT_USER_THRESHOLD = 5
 CRED_ABUSE_FAILURE_THRESHOLD = 8
+
+def _phase4_summary(incident: dict) -> str:
+    technique = incident.get("mitre_technique", "T1110")
+    subject = incident.get("subject") or {}
+    evidence = incident.get("evidence") or {}
+    counts = evidence.get("counts") or {}
+
+    username = subject.get("username", "unknown")
+    source_ip = subject.get("source_ip", "unknown")
+    failures = counts.get("failures", 0)
+    ws = evidence.get("window_start", "unknown")
+    we = evidence.get("window_end", "unknown")
+
+    return (
+        f"Brute-force authentication activity detected (MITRE {technique}): "
+        f"{failures} failed login attempts against user '{username}' from source IP {source_ip} "
+        f"during {ws}–{we}, exceeding brute-force threshold."
+    )
+
+
+def _phase4_summary_cred_abuse(incident: dict) -> str:
+    """Generate summary for credential abuse (password spraying) incidents."""
+    subject = incident.get("subject") or {}
+    evidence = incident.get("evidence") or {}
+    counts = evidence.get("counts") or {}
+
+    source_ip = subject.get("source_ip", "unknown")
+    failures = counts.get("failures", 0)
+    distinct_users = counts.get("distinct_users", 0)
+    ws = evidence.get("window_start", "unknown")
+    we = evidence.get("window_end", "unknown")
+
+    return (
+        f"Potential Credential Abuse detected (MITRE T1110.003 - Password Spraying): "
+        f"{failures} failed login attempts across {distinct_users} distinct accounts "
+        f"from source IP {source_ip} during {ws}–{we}. "
+        "This pattern is indicative of compromised credentials or unauthorized access attempts."
+    )
+
+
+def _phase4_recommended_actions() -> list[str]:
+    return [
+        "Validate whether the source IP and login pattern are expected for this user (VPNs, known locations, automation).",
+        "Review authentication activity before and after the detection window to identify escalation or successful access.",
+        "Assess account controls (lockout behavior, MFA enforcement) and confirm whether the user experienced authentication issues.",
+        "If activity is unauthorized, follow response policy: reset credentials, revoke active sessions, and apply network controls as appropriate."
+    ]
+
+
+def _phase4_apply_explainability(incident: dict) -> dict:
+    incident["summary"] = _phase4_summary(incident)
+    incident["recommended_actions"] = _phase4_recommended_actions()
+    return incident
+
+
+def _phase4_apply_explainability_cred_abuse(incident: dict) -> dict:
+    incident["summary"] = _phase4_summary_cred_abuse(incident)
+    incident["recommended_actions"] = _phase4_recommended_actions()
+    return incident
 
 
 def _parse_ts(ts: str) -> Optional[datetime]:
@@ -64,6 +126,7 @@ def _event_timeline(events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
                 "event_type": ev.get("event_type"),
                 "result": ev.get("result"),
                 "reason": ev.get("reason"),
+                "username": ev.get("username"),
             }
         )
     return out
@@ -111,7 +174,6 @@ def detect_incidents(normalized_events: Any) -> List[Dict[str, Any]]:
         while win and win[0][0] < cutoff:
             win.popleft()
 
-
         # Build aggregates in the current window
         failures_by_pair: Dict[Tuple[str, str], List[Dict[str, Any]]] = {}
         failures_by_ip: Dict[str, List[Dict[str, Any]]] = {}
@@ -126,8 +188,6 @@ def detect_incidents(normalized_events: Any) -> List[Dict[str, Any]]:
 
             failures_by_ip.setdefault(ip, []).append(e)
             failures_by_pair.setdefault((ip, user), []).append(e)
-
-
 
         # 1) Brute force: same ip+username
         for (ip, user), events in failures_by_pair.items():
@@ -150,13 +210,8 @@ def detect_incidents(normalized_events: Any) -> List[Dict[str, Any]]:
                 "mitre_technique": MITRE_T1110,
                 "severity": sev,
                 "confidence": str(conf),
-                "summary": f"Possible brute-force against '{user}' from {ip}: {count} failed logins within {WINDOW_SECONDS}s.",
-                "recommended_actions": [
-                    "Review authentication logs for the affected account and source IP.",
-                    "Check if the account exists and whether any successful logins followed.",
-                    "Consider temporary rate-limiting, account lockout, or IP blocking per policy.",
-                    "If unauthorized access is suspected, reset credentials and review MFA status."
-                ],
+                "summary": "",
+                "recommended_actions": [],
                 "subject": {"source_ip": ip, "username": user},
                 "evidence": {
                     "window_start": start_ts,
@@ -167,62 +222,57 @@ def detect_incidents(normalized_events: Any) -> List[Dict[str, Any]]:
                 },
             }
 
-            print("ATTEMPTING INCIDENT:", incident)
+            incident = _phase4_apply_explainability(incident)
             try:
                 obj = Incident(**incident)
-                out_incidents.append(obj.model_dump())
-            except Exception as e:
-                print("INCIDENT ERROR:", e)
-                continue
-
-        # 2) Credential abuse: same ip targeting many usernames
-        for ip, events in failures_by_ip.items():
-            usernames = sorted({e.get("username") for e in events if isinstance(e.get("username"), str) and e.get("username")})
-            distinct_users = len(usernames)
-            count = len(events)
-
-            if distinct_users < CRED_ABUSE_DISTINCT_USER_THRESHOLD:
-                continue
-            if count < CRED_ABUSE_FAILURE_THRESHOLD:
-                continue
-
-            start_ts, end_ts = _window_bounds(win)
-            seed = f"credential_abuse|{ip}|{start_ts}|{end_ts}|{distinct_users}|{count}"
-            incident_id = _stable_incident_id(seed)
-            if incident_id in emitted:
-                continue
-            emitted.add(incident_id)
-
-            sev, conf = _severity_and_confidence(count)
-
-            incident = {
-                "incident_id": incident_id,
-                "type": "credential_abuse",
-                "mitre_technique": MITRE_T1110,
-                "severity": sev,
-                "confidence": str(conf),
-                "summary": f"Possible credential stuffing from {ip}: {count} failures across {distinct_users} usernames within {WINDOW_SECONDS}s.",
-                "recommended_actions": [
-                    "Review authentication logs for repeated failures across multiple accounts.",
-                    "Check for related successful logins from the same source IP.",
-                    "Consider blocking or challenging the source IP per policy.",
-                    "If confirmed, notify identity/security teams and review exposed credential sources."
-                ],
-                "subject": {"source_ip": ip, "username": None},
-                "evidence": {
-                    "window_start": start_ts,
-                    "window_end": end_ts,
-                    "counts": {"failures": count, "distinct_usernames": distinct_users, "usernames": usernames},
-                    "timeline": _event_timeline(events),
-                    "events": events,
-                },
-            }
-
-            try:
-                obj = Incident(**incident)
-                out_incidents.append(obj.model_dump())
+                out_incidents.append(obj.model_dump(exclude_unset=True))
             except Exception:
                 continue
+
+        # 2) Credential Abuse: same IP, multiple distinct usernames
+        for ip, events in failures_by_ip.items():
+            distinct_users = {e.get("username") for e in events if e.get("username")}
+            count = len(events)
+
+            if len(distinct_users) >= CRED_ABUSE_DISTINCT_USER_THRESHOLD and count >= CRED_ABUSE_FAILURE_THRESHOLD:
+                start_ts, end_ts = _window_bounds(win)
+                seed = f"cred_abuse|{ip}|{start_ts}|{end_ts}|{count}|{len(distinct_users)}"
+                incident_id = _stable_incident_id(seed)
+
+                if incident_id in emitted:
+                    continue
+                emitted.add(incident_id)
+
+                # Severity based on distinct user count
+                sev = "critical" if len(distinct_users) > 15 else "high"
+
+                incident = {
+                    "incident_id": incident_id,
+                    "type": "credential_abuse",
+                    "mitre_technique": MITRE_T1110_003,
+                    "severity": sev,
+                    "confidence": "90",
+                    "summary": "",
+                    "recommended_actions": [],
+                    "subject": {"source_ip": ip, "username": "multiple_accounts"},
+                    "evidence": {
+                        "window_start": start_ts,
+                        "window_end": end_ts,
+                        "counts": {
+                            "failures": count,
+                            "distinct_users": len(distinct_users)
+                        },
+                        "timeline": _event_timeline(events),
+                        "events": events,
+                    },
+                }
+
+                incident = _phase4_apply_explainability_cred_abuse(incident)
+                try:
+                    obj = Incident(**incident)
+                    out_incidents.append(obj.model_dump(exclude_unset=True))
+                except Exception:
+                    continue
 
     # Final deterministic ordering
     out_incidents.sort(key=lambda x: x.get("incident_id", ""))
