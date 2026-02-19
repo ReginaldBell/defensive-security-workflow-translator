@@ -1,0 +1,194 @@
+[
+  {
+    "incident_id": "inc_a1afe2fd2042beffa075b07d",
+    "type": "credential_abuse",
+    "mitre_technique": "T1110.003",
+    "severity": "high",
+    "confidence": 0.9,
+    "first_seen": "2025-12-21T06:10:00Z",
+    "last_seen": "2025-12-21T06:10:35Z",
+    "affected_entities": [
+      "203.0.113.99",
+      "u1",
+      "u2",
+      "u3",
+      "u4",
+      "u5"
+    ],
+    "evidence_count": 8,
+    "source_count": 1,
+    "summary": "Potential Credential Abuse detected (MITRE T1110.003 - Password Spraying): 8 failed login attempts across 5 distinct accounts from source IP 203.0.113.99 during 2025-12-21T06:10:00Z\u20132025-12-21T06:10:35Z. This pattern is indicative of compromised credentials or unauthorized access attempts.",
+    "recommended_actions": [
+      "Validate whether the source IP and login pattern are expected for this user (VPNs, known locations, automation).",
+      "Review authentication activity before and after the detection window to identify escalation or successful access.",
+      "Assess account controls (lockout behavior, MFA enforcement) and confirm whether the user experienced authentication issues.",
+      "If activity is unauthorized, follow response policy: reset credentials, revoke active sessions, and apply network controls as appropriate."
+    ],
+    "explanation": {
+      "threshold": 8,
+      "observed": 8,
+      "window": "60s",
+      "trigger_field": "source_ip"
+    },
+    "subject": {
+      "source_ip": "203.0.113.99",
+      "username": "multiple_accounts"
+    },
+    "evidence": {
+      "window_start": "2025-12-21T06:10:00Z",
+      "window_end": "2025-12-21T06:10:35Z",
+      "counts": {
+        "failures": 8,
+        "distinct_users": 5
+      },
+      "timeline": [
+        {
+          "timestamp": "2025-12-21T06:10:00Z",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "username": "u1"
+        },
+        {
+          "timestamp": "2025-12-21T06:10:05Z",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "username": "u2"
+        },
+        {
+          "timestamp": "2025-12-21T06:10:10Z",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "username": "u3"
+        },
+        {
+          "timestamp": "2025-12-21T06:10:15Z",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "username": "u4"
+        },
+        {
+          "timestamp": "2025-12-21T06:10:20Z",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "username": "u5"
+        },
+        {
+          "timestamp": "2025-12-21T06:10:25Z",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "username": "u1"
+        },
+        {
+          "timestamp": "2025-12-21T06:10:30Z",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "username": "u2"
+        },
+        {
+          "timestamp": "2025-12-21T06:10:35Z",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "username": "u3"
+        }
+      ],
+      "events": [
+        {
+          "timestamp": "2025-12-21T06:10:00Z",
+          "source_ip": "203.0.113.99",
+          "username": "u1",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "user_agent": "Mozilla/5.0",
+          "source": "demo",
+          "raw_source": "{\"timestamp\":\"2025-12-21T06:10:00Z\",\"source_ip\":\"203.0.113.99\",\"username\":\"u1\",\"event_type\":\"login_attempt\",\"result\":\"failure\",\"reason\":\"bad_password\",\"user_agent\":\"Mozilla/5.0\",\"source\":\"demo\"}"
+        },
+        {
+          "timestamp": "2025-12-21T06:10:05Z",
+          "source_ip": "203.0.113.99",
+          "username": "u2",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "user_agent": "Mozilla/5.0",
+          "source": "demo",
+          "raw_source": "{\"timestamp\":\"2025-12-21T06:10:05Z\",\"source_ip\":\"203.0.113.99\",\"username\":\"u2\",\"event_type\":\"login_attempt\",\"result\":\"failure\",\"reason\":\"bad_password\",\"user_agent\":\"Mozilla/5.0\",\"source\":\"demo\"}"
+        },
+        {
+          "timestamp": "2025-12-21T06:10:10Z",
+          "source_ip": "203.0.113.99",
+          "username": "u3",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "user_agent": "Mozilla/5.0",
+          "source": "demo",
+          "raw_source": "{\"timestamp\":\"2025-12-21T06:10:10Z\",\"source_ip\":\"203.0.113.99\",\"username\":\"u3\",\"event_type\":\"login_attempt\",\"result\":\"failure\",\"reason\":\"bad_password\",\"user_agent\":\"Mozilla/5.0\",\"source\":\"demo\"}"
+        },
+        {
+          "timestamp": "2025-12-21T06:10:15Z",
+          "source_ip": "203.0.113.99",
+          "username": "u4",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "user_agent": "Mozilla/5.0",
+          "source": "demo",
+          "raw_source": "{\"timestamp\":\"2025-12-21T06:10:15Z\",\"source_ip\":\"203.0.113.99\",\"username\":\"u4\",\"event_type\":\"login_attempt\",\"result\":\"failure\",\"reason\":\"bad_password\",\"user_agent\":\"Mozilla/5.0\",\"source\":\"demo\"}"
+        },
+        {
+          "timestamp": "2025-12-21T06:10:20Z",
+          "source_ip": "203.0.113.99",
+          "username": "u5",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "user_agent": "Mozilla/5.0",
+          "source": "demo",
+          "raw_source": "{\"timestamp\":\"2025-12-21T06:10:20Z\",\"source_ip\":\"203.0.113.99\",\"username\":\"u5\",\"event_type\":\"login_attempt\",\"result\":\"failure\",\"reason\":\"bad_password\",\"user_agent\":\"Mozilla/5.0\",\"source\":\"demo\"}"
+        },
+        {
+          "timestamp": "2025-12-21T06:10:25Z",
+          "source_ip": "203.0.113.99",
+          "username": "u1",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "user_agent": "Mozilla/5.0",
+          "source": "demo",
+          "raw_source": "{\"timestamp\":\"2025-12-21T06:10:25Z\",\"source_ip\":\"203.0.113.99\",\"username\":\"u1\",\"event_type\":\"login_attempt\",\"result\":\"failure\",\"reason\":\"bad_password\",\"user_agent\":\"Mozilla/5.0\",\"source\":\"demo\"}"
+        },
+        {
+          "timestamp": "2025-12-21T06:10:30Z",
+          "source_ip": "203.0.113.99",
+          "username": "u2",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "user_agent": "Mozilla/5.0",
+          "source": "demo",
+          "raw_source": "{\"timestamp\":\"2025-12-21T06:10:30Z\",\"source_ip\":\"203.0.113.99\",\"username\":\"u2\",\"event_type\":\"login_attempt\",\"result\":\"failure\",\"reason\":\"bad_password\",\"user_agent\":\"Mozilla/5.0\",\"source\":\"demo\"}"
+        },
+        {
+          "timestamp": "2025-12-21T06:10:35Z",
+          "source_ip": "203.0.113.99",
+          "username": "u3",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "user_agent": "Mozilla/5.0",
+          "source": "demo",
+          "raw_source": "{\"timestamp\":\"2025-12-21T06:10:35Z\",\"source_ip\":\"203.0.113.99\",\"username\":\"u3\",\"event_type\":\"login_attempt\",\"result\":\"failure\",\"reason\":\"bad_password\",\"user_agent\":\"Mozilla/5.0\",\"source\":\"demo\"}"
+        }
+      ]
+    }
+  }
+]

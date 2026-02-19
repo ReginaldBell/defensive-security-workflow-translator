@@ -1,0 +1,17 @@
+{
+  "events_ingested_total": 5,
+  "normalized_success_total": 5,
+  "telemetry_rejected_total": 0,
+  "missing_required_total": 0,
+  "events_by_source": {
+    "auth_service": 5
+  },
+  "incidents_total": {
+    "brute_force": 1
+  },
+  "runs_total": 1,
+  "incidents_created_total": 3,
+  "incidents_updated_total": 0,
+  "incidents_reopened_total": 0,
+  "incidents_closed_total": 0
+}

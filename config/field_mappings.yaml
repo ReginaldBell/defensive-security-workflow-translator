@@ -1,0 +1,142 @@
+# field_mappings.yaml
+# Defines field alias lists and telemetry reject types per log source profile.
+#
+# _default is the fallback used when no named profile matches the source field.
+# Profile names must match the value of the 'source' field in incoming events.
+# Alias lists are ordered — first match wins.
+#
+# Validate with: python -m app.services.mapping_loader --validate
+
+_default:
+  _reject_event_types:
+    - heartbeat
+    - health_check
+    - health
+    - ping
+    - pong
+    - status_check
+    - metric
+    - metrics
+    - keepalive
+    - liveness
+    - readiness
+  timestamp:
+    - timestamp
+    - time
+    - "@timestamp"
+    - ts
+  source_ip:
+    - source_ip
+    - ip
+    - client_ip
+    - src_ip
+    - remote_ip
+  username:
+    - username
+    - user
+    - user_id
+    - account
+    - principal
+  event_type:
+    - event_type
+    - type
+    - action
+    - event
+  result:
+    - result
+    - outcome
+    - status
+  reason:
+    - reason
+    - error
+    - message
+    - failure_reason
+  user_agent:
+    - user_agent
+    - ua
+    - agent
+  source:
+    - source
+    - provider
+    - log_source
+    - system
+
+okta:
+  _reject_event_types:
+    - system.agent.new_version
+    - system.org.rate_limit.warning
+  timestamp:
+    - published
+    - timestamp
+    - time
+    - "@timestamp"
+    - ts
+  source_ip:
+    - ipAddress
+    - ip
+    - client_ip
+  username:
+    - login
+    - displayName
+    - username
+    - user_id
+  event_type:
+    - eventType
+    - event_type
+    - type
+  result:
+    - outcome.result
+    - result
+    - status
+  reason:
+    - outcome.reason
+    - reason
+    - error
+  user_agent:
+    - client.userAgent.rawUserAgent
+    - user_agent
+    - ua
+  source:
+    - displayMessage
+    - source
+    - provider
+
+windows_security:
+  _reject_event_types:
+    - "4672"   # Special privileges assigned — not an auth failure event
+    - "4634"   # Account logoff — not an auth failure event
+  timestamp:
+    - TimeCreated
+    - timestamp
+    - time
+    - "@timestamp"
+    - ts
+  source_ip:
+    - IpAddress
+    - source_ip
+    - ip
+    - src_ip
+  username:
+    - SubjectUserName
+    - TargetUserName
+    - username
+    - user
+  event_type:
+    - EventID
+    - event_type
+    - type
+  result:
+    - Keywords
+    - result
+    - status
+  reason:
+    - FailureReason
+    - reason
+    - error
+  user_agent:
+    - user_agent
+    - ua
+  source:
+    - Channel
+    - source
+    - provider

@@ -1,0 +1,37 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Start Backend (FastAPI)",
+			"type": "shell",
+			"command": "uvicorn app.main:app --reload --host 0.0.0.0 --port 8000",
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Start Backend (FastAPI)",
+			"type": "shell",
+			"command": "C:/Users/user/Downloads/defensive-translator/.venv/Scripts/uvicorn.exe app.main:app --reload --host 0.0.0.0 --port 8000",
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Start Backend (FastAPI)",
+			"type": "shell",
+			"command": "C:/Users/user/Downloads/defensive-translator/.venv/Scripts/python.exe -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000",
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Start Frontend (Vite)",
+			"type": "shell",
+			"command": "npm run dev --prefix dashboard",
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		}
+	]
+}

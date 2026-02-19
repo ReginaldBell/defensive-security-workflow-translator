@@ -1,10 +1,10 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import SecurityDashboard from './SecurityDashboard'
+import SecurityWorkflow from './SecurityWorkflow.jsx'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <SecurityDashboard />
+    <SecurityWorkflow />
   </React.StrictMode>,
 )

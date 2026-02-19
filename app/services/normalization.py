@@ -6,6 +6,13 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from app.schemas.event_models_new import NormalizedEventNew as NormalizedEvent
+from app.services.mapping_loader import get_field_aliases, get_reject_types
+
+_TELEMETRY_SENTINEL = object()  # unique identity — returned only on telemetry rejection
+
+# Kept for backward compatibility; delegates to the _default profile in the YAML config.
+# Prefer mapping_loader.get_reject_types() for new code.
+TELEMETRY_EVENT_TYPES: frozenset = get_reject_types(None)
 
 
 def _coerce_timestamp(value: Any) -> Optional[str]:
@@ -48,25 +55,31 @@ def _first_str(d: Dict[str, Any], keys: List[str]) -> Optional[str]:
 
 
 def _map_raw_to_normalized_dict(raw: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    ts = _coerce_timestamp(
-        raw.get("timestamp")
-        or raw.get("time")
-        or raw.get("@timestamp")
-        or raw.get("ts")
-    )
+    # Bootstrap: extract source using _default aliases to select a profile,
+    # then use the profile's aliases for all other fields.
+    source = _first_str(raw, get_field_aliases(None, "source"))
+
+    # Timestamp: iterate profile aliases and coerce the first hit.
+    ts_raw = None
+    for alias in get_field_aliases(source, "timestamp"):
+        val = raw.get(alias)
+        if val is not None:
+            ts_raw = val
+            break
+    ts = _coerce_timestamp(ts_raw)
     if ts is None:
         return None
 
-    source_ip = _first_str(raw, ["source_ip", "ip", "client_ip", "src_ip", "remote_ip"])
-    username = _first_str(raw, ["username", "user", "user_id", "account", "principal"])
+    source_ip  = _first_str(raw, get_field_aliases(source, "source_ip"))
+    username   = _first_str(raw, get_field_aliases(source, "username"))
+    event_type = _first_str(raw, get_field_aliases(source, "event_type"))
+    result     = _first_str(raw, get_field_aliases(source, "result"))
+    reason     = _first_str(raw, get_field_aliases(source, "reason"))
+    user_agent = _first_str(raw, get_field_aliases(source, "user_agent"))
 
-    event_type = _first_str(raw, ["event_type", "type", "action", "event"])
-    result = _first_str(raw, ["result", "outcome", "status"])
-
-    reason = _first_str(raw, ["reason", "error", "message", "failure_reason"])
-    user_agent = _first_str(raw, ["user_agent", "ua", "agent"])
-
-    source = _first_str(raw, ["source", "provider", "log_source", "system"])
+    # Reject known non-auth telemetry before any further processing.
+    if event_type is not None and event_type.lower() in get_reject_types(source):
+        return _TELEMETRY_SENTINEL  # type: ignore[return-value]
 
     # Required minimum for auth telemetry normalization:
     # timestamp + event_type + result must exist to support downstream detections.
@@ -85,6 +98,7 @@ def _map_raw_to_normalized_dict(raw: Dict[str, Any]) -> Optional[Dict[str, Any]]
         "reason": reason,
         "user_agent": user_agent,
         "source": source,
+        "raw_source": json.dumps(raw, separators=(",", ":")),
     }
 
     try:
@@ -94,16 +108,24 @@ def _map_raw_to_normalized_dict(raw: Dict[str, Any]) -> Optional[Dict[str, Any]]
         return None
 
 
-def normalize_events(raw_events: Any) -> List[Dict[str, Any]]:
+def normalize_events(raw_events: Any) -> Tuple[List[Dict[str, Any]], int]:
+    """Normalize a list of raw event dicts.
+
+    Returns (normalized_events, telemetry_rejected_count).
+    """
     if not isinstance(raw_events, list):
-        return []
+        return [], 0
 
     normalized: List[Tuple[datetime, Dict[str, Any]]] = []
+    telemetry_count = 0
 
     for item in raw_events:
         if not isinstance(item, dict):
             continue
         nd = _map_raw_to_normalized_dict(item)
+        if nd is _TELEMETRY_SENTINEL:
+            telemetry_count += 1
+            continue
         if nd is None:
             continue
 
@@ -116,7 +138,7 @@ def normalize_events(raw_events: Any) -> List[Dict[str, Any]]:
 
     normalized.sort(key=lambda x: x[0])
 
-    return [x[1] for x in normalized]
+    return [x[1] for x in normalized], telemetry_count
 
 
 def _parse_ts_for_sort(ts: Any) -> Optional[datetime]:
@@ -139,13 +161,19 @@ def normalize_run(run_id: str, runs_root: Path) -> Dict[str, int]:
     out_path = run_dir / "normalized.json"
 
     if not raw_path.exists():
-        return {"raw": 0, "normalized": 0, "dropped": 0}
+        return {"raw": 0, "normalized": 0, "dropped": 0, "telemetry_rejected": 0}
 
     raw_obj = json.loads(raw_path.read_text(encoding="utf-8"))
-    normalized = normalize_events(raw_obj)
+    normalized, telemetry_rejected = normalize_events(raw_obj)
 
     out_path.write_text(json.dumps(normalized, indent=2), encoding="utf-8")
 
     raw_count = len(raw_obj) if isinstance(raw_obj, list) else 0
     norm_count = len(normalized)
-    return {"raw": raw_count, "normalized": norm_count, "dropped": max(raw_count - norm_count, 0)}
+    other_dropped = max(raw_count - norm_count - telemetry_rejected, 0)
+    return {
+        "raw": raw_count,
+        "normalized": norm_count,
+        "dropped": other_dropped,
+        "telemetry_rejected": telemetry_rejected,
+    }

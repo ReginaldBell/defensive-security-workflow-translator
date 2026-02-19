@@ -1,0 +1,39 @@
+{
+  "schema": "SecureWatch Engine Ingest v1",
+  "description": "Authentication events for normalization and detection. Accepts a raw JSON array or an envelope object.",
+  "input_formats": {
+    "raw_array": "POST a JSON array of event objects directly.",
+    "envelope_object": "POST a JSON object with an 'events' key containing the array, plus optional metadata."
+  },
+  "envelope_fields": {
+    "events": "(required) Array of event objects — same format as the raw array input.",
+    "source": "(optional) String. Overrides the log source label stored in run metadata.",
+    "schema_version": "(optional) String. Identifies the schema version of the sender."
+  },
+  "required_fields": {
+    "timestamp": "ISO 8601 string (e.g. 2025-12-21T05:00:00Z)",
+    "result": "failure | success"
+  },
+  "optional_fields": {
+    "source_ip": "Client/source IP address",
+    "username": "Account identifier",
+    "event_type": "Defaults to login_attempt",
+    "reason": "Failure reason (e.g. bad_password)",
+    "user_agent": "User agent string",
+    "source": "Source system name (defaults to auth_service)"
+  },
+  "defaults": {
+    "event_type": "login_attempt",
+    "source": "auth_service"
+  },
+  "rejected_event_types": [
+    "heartbeat", "health_check", "health", "ping", "pong",
+    "status_check", "metric", "metrics", "keepalive", "liveness", "readiness"
+  ],
+  "notes": [
+    "Additional fields are ignored.",
+    "Events missing required fields or invalid timestamps are dropped during normalization.",
+    "Events whose event_type matches a known telemetry type are silently rejected.",
+    "Ingest expects a JSON array or envelope object. Empty event lists are rejected."
+  ]
+}

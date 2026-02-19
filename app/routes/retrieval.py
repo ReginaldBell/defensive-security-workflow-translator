@@ -2,6 +2,8 @@ from fastapi import APIRouter, HTTPException
 from pathlib import Path
 import json
 
+from app.schemas.api_contract import RunsIncidentsResponse, RunsMetaResponse, RunsNormalizedResponse
+
 router = APIRouter(prefix="/runs", tags=["retrieval"])
 RUNS_DIR = Path("runs")
 
@@ -22,7 +24,7 @@ def list_runs():
         return []
     return sorted([d.name for d in RUNS_DIR.iterdir() if d.is_dir()])
 
-@router.get("/{run_id}/meta")
+@router.get("/{run_id}/meta", response_model=RunsMetaResponse)
 def get_meta(run_id: str):
     """Get metadata for a specific run (created_at, event_count)."""
     path = get_run_path(run_id) / "meta.json"
@@ -33,24 +35,24 @@ def get_meta(run_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error reading metadata: {str(e)}")
 
-@router.get("/{run_id}/normalized")
+@router.get("/{run_id}/normalized", response_model=RunsNormalizedResponse)
 def get_normalized(run_id: str):
     """Get normalized events for a specific run."""
     path = get_run_path(run_id) / "normalized.json"
     if not path.exists():
-        return {"message": "Normalized events not yet generated", "events": []}
+        return {"message": "Normalized events not yet generated", "event_count": 0, "events": []}
     try:
         events = json.loads(path.read_text(encoding="utf-8"))
         return {"event_count": len(events) if isinstance(events, list) else 0, "events": events}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error reading normalized events: {str(e)}")
 
-@router.get("/{run_id}/incidents")
+@router.get("/{run_id}/incidents", response_model=RunsIncidentsResponse)
 def get_incidents(run_id: str):
     """Get detected incidents for a specific run."""
     path = get_run_path(run_id) / "incidents.json"
     if not path.exists():
-        return {"message": "Incidents not yet generated", "incidents": []}
+        return {"message": "Incidents not yet generated", "incident_count": 0, "incidents": []}
     try:
         incidents = json.loads(path.read_text(encoding="utf-8"))
         return {"incident_count": len(incidents) if isinstance(incidents, list) else 0, "incidents": incidents}

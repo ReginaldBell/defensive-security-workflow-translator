@@ -1,0 +1,158 @@
+[
+  {
+    "incident_id": "inc_6aacc6bfc532fe9d92c369c7",
+    "type": "brute_force",
+    "mitre_technique": "T1110",
+    "mitre": {
+      "tactic": "Credential Access",
+      "technique": "T1110",
+      "technique_name": "Brute Force"
+    },
+    "severity": "low",
+    "confidence": 0.7,
+    "first_seen": "2026-02-19T10:00:00Z",
+    "last_seen": "2026-02-19T10:00:25Z",
+    "affected_entities": [
+      "203.0.113.10",
+      "alice"
+    ],
+    "evidence_count": 6,
+    "source_count": 1,
+    "summary": "Brute-force authentication activity detected (MITRE T1110): 6 failed login attempts against user 'alice' from source IP 203.0.113.10 during 2026-02-19T10:00:00Z\u20132026-02-19T10:00:25Z, exceeding brute-force threshold.",
+    "recommended_actions": [
+      "Validate whether the source IP and login pattern are expected for this user (VPNs, known locations, automation).",
+      "Review authentication activity before and after the detection window to identify escalation or successful access.",
+      "Assess account controls (lockout behavior, MFA enforcement) and confirm whether the user experienced authentication issues.",
+      "If activity is unauthorized, follow response policy: reset credentials, revoke active sessions, and apply network controls as appropriate."
+    ],
+    "explanation": {
+      "threshold": 5,
+      "observed": 5,
+      "window": "60s",
+      "trigger_field": "username"
+    },
+    "subject": {
+      "source_ip": "203.0.113.10",
+      "username": "alice"
+    },
+    "evidence": {
+      "window_start": "2026-02-19T10:00:00Z",
+      "window_end": "2026-02-19T10:00:25Z",
+      "counts": {
+        "failures": 6
+      },
+      "timeline": [
+        {
+          "timestamp": "2026-02-19T10:00:00Z",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "username": "alice"
+        },
+        {
+          "timestamp": "2026-02-19T10:00:05Z",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "username": "alice"
+        },
+        {
+          "timestamp": "2026-02-19T10:00:10Z",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "username": "alice"
+        },
+        {
+          "timestamp": "2026-02-19T10:00:15Z",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "username": "alice"
+        },
+        {
+          "timestamp": "2026-02-19T10:00:20Z",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "username": "alice"
+        },
+        {
+          "timestamp": "2026-02-19T10:00:25Z",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "username": "alice"
+        }
+      ],
+      "events": [
+        {
+          "timestamp": "2026-02-19T10:00:00Z",
+          "source_ip": "203.0.113.10",
+          "username": "alice",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "user_agent": null,
+          "source": "demo",
+          "raw_source": "{\"timestamp\":\"2026-02-19T10:00:00Z\",\"source_ip\":\"203.0.113.10\",\"username\":\"alice\",\"event_type\":\"login_attempt\",\"result\":\"failure\",\"reason\":\"bad_password\",\"source\":\"demo\"}"
+        },
+        {
+          "timestamp": "2026-02-19T10:00:05Z",
+          "source_ip": "203.0.113.10",
+          "username": "alice",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "user_agent": null,
+          "source": "demo",
+          "raw_source": "{\"timestamp\":\"2026-02-19T10:00:05Z\",\"source_ip\":\"203.0.113.10\",\"username\":\"alice\",\"event_type\":\"login_attempt\",\"result\":\"failure\",\"reason\":\"bad_password\",\"source\":\"demo\"}"
+        },
+        {
+          "timestamp": "2026-02-19T10:00:10Z",
+          "source_ip": "203.0.113.10",
+          "username": "alice",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "user_agent": null,
+          "source": "demo",
+          "raw_source": "{\"timestamp\":\"2026-02-19T10:00:10Z\",\"source_ip\":\"203.0.113.10\",\"username\":\"alice\",\"event_type\":\"login_attempt\",\"result\":\"failure\",\"reason\":\"bad_password\",\"source\":\"demo\"}"
+        },
+        {
+          "timestamp": "2026-02-19T10:00:15Z",
+          "source_ip": "203.0.113.10",
+          "username": "alice",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "user_agent": null,
+          "source": "demo",
+          "raw_source": "{\"timestamp\":\"2026-02-19T10:00:15Z\",\"source_ip\":\"203.0.113.10\",\"username\":\"alice\",\"event_type\":\"login_attempt\",\"result\":\"failure\",\"reason\":\"bad_password\",\"source\":\"demo\"}"
+        },
+        {
+          "timestamp": "2026-02-19T10:00:20Z",
+          "source_ip": "203.0.113.10",
+          "username": "alice",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "user_agent": null,
+          "source": "demo",
+          "raw_source": "{\"timestamp\":\"2026-02-19T10:00:20Z\",\"source_ip\":\"203.0.113.10\",\"username\":\"alice\",\"event_type\":\"login_attempt\",\"result\":\"failure\",\"reason\":\"bad_password\",\"source\":\"demo\"}"
+        },
+        {
+          "timestamp": "2026-02-19T10:00:25Z",
+          "source_ip": "203.0.113.10",
+          "username": "alice",
+          "event_type": "login_attempt",
+          "result": "failure",
+          "reason": "bad_password",
+          "user_agent": null,
+          "source": "demo",
+          "raw_source": "{\"timestamp\":\"2026-02-19T10:00:25Z\",\"source_ip\":\"203.0.113.10\",\"username\":\"alice\",\"event_type\":\"login_attempt\",\"result\":\"failure\",\"reason\":\"bad_password\",\"source\":\"demo\"}"
+        }
+      ]
+    }
+  }
+]

@@ -1,283 +1,377 @@
-# Defensive Translator
+# SecureWatch Engine
 
-A security event processing and threat detection system that ingests authentication logs from various sources, normalizes them into a common schema, and detects brute-force and credential abuse patterns with explainable incident reports.
+![Dashboard Screenshot](dashboard/src/images/SecureWatch.png)
 
-## Overview
+A deterministic security event processing pipeline that ingests heterogeneous authentication logs, normalizes them through configurable field mappings, applies sliding-window threat detection with MITRE ATT&CK classification, and manages the full incident lifecycle with entity-level risk scoring.
 
-Defensive Translator is a FastAPI-based security automation platform designed to:
-- **Ingest** authentication logs from diverse sources (SIEM, cloud providers, applications)
-- **Normalize** heterogeneous log formats into a unified event schema
-- **Detect** brute-force attacks and credential abuse (password spraying) using sliding window analysis
-- **Generate** explainable security incidents with MITRE ATT&CK technique mappings and actionable remediation steps
-
-The system provides both a REST API for programmatic access and a React-based dashboard for visualization and investigation.
+---
 
 ## Architecture
 
 ```
-┌─────────────────┐
-│  Log Sources    │  (Various formats: JSON logs, SIEM exports, etc.)
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  Ingestion API  │  POST /ingest/
-│  (FastAPI)      │  - Accepts raw events
-└────────┬────────┘  - Creates run artifacts
-         │
-         ▼
-┌─────────────────┐
-│  Normalization  │  - Maps diverse fields (timestamp, source_ip, username, etc.)
-│  Service        │  - Validates schema compliance
-└────────┬────────┘  - Sorts chronologically
-         │
-         ▼
-┌─────────────────┐
-│  Detection      │  - Sliding window analysis (60-second windows)
-│  Service        │  - Brute-force detection (≥5 failures/user)
-└────────┬────────┘  - Credential abuse detection (≥5 users, ≥8 failures)
-         │
-         ▼
-┌─────────────────┐
-│  Incidents      │  - Deterministic incident IDs (SHA-256 based)
-│  (Explainable)  │  - MITRE ATT&CK technique mapping (T1110, T1110.003)
-└────────┬────────┘  - Severity scoring and confidence levels
-         │
-         ▼
-┌─────────────────┐
-│  Retrieval API  │  GET /runs/, /runs/{id}/normalized, /runs/{id}/incidents
-│  & Dashboard    │  - React + Vite frontend
-└─────────────────┘  - Real-time incident investigation
+                  ┌──────────────────────────────────┐
+                  │         Log Sources               │
+                  │  Okta  ·  Windows  ·  Generic JSON│
+                  └──────────────┬───────────────────┘
+                                 │  POST /ingest/
+                                 ▼
+               ┌─────────────────────────────────────┐
+               │         Normalization Layer          │
+               │  YAML-driven field mapping           │
+               │  Timestamp coercion (epoch → ISO)    │
+               │  Telemetry rejection filter           │
+               │  Pydantic v2 schema enforcement       │
+               └──────────────┬──────────────────────┘
+                              │  Sorted chronologically
+                              ▼
+               ┌─────────────────────────────────────┐
+               │         Detection Engine             │
+               │  60s sliding window (deque-based)    │
+               │  Rule 1: Brute-force (T1110)         │
+               │  Rule 2: Password spraying (T1110.003)│
+               │  Deterministic incident IDs (SHA-256) │
+               │  Incident merging & deduplication     │
+               └──────────────┬──────────────────────┘
+                              │
+                    ┌─────────┼──────────┐
+                    ▼         ▼          ▼
+          ┌──────────┐ ┌──────────┐ ┌──────────────┐
+          │ Incident │ │  Entity  │ │   Metrics    │
+          │ Store    │ │  Risk    │ │   Counters   │
+          │ (JSON)   │ │  Scoring │ │              │
+          └────┬─────┘ └────┬─────┘ └──────┬───────┘
+               │            │              │
+               ▼            ▼              ▼
+          ┌──────────────────────────────────────┐
+          │           REST API (FastAPI)          │
+          │  /incidents/  /entity-risk/  /metrics/│
+          └──────────────────┬───────────────────┘
+                             │
+                             ▼
+          ┌──────────────────────────────────────┐
+          │        React + Vite Dashboard         │
+          │  Tailwind CSS  ·  Lucide icons        │
+          └──────────────────────────────────────┘
 ```
 
-## Features
+## Detection Rules
 
-### 1. Flexible Log Ingestion
-- Accepts arbitrary JSON arrays of authentication events
-- Tolerant field mapping: supports common field name variations
-  - Timestamps: `timestamp`, `time`, `@timestamp`, `ts`
-  - Source IPs: `source_ip`, `ip`, `client_ip`, `src_ip`, `remote_ip`
-  - Usernames: `username`, `user`, `user_id`, `account`, `principal`
-  - Event types: `event_type`, `type`, `action`, `event`
-  - Results: `result`, `outcome`, `status`
-- Automatic timestamp normalization to ISO 8601 UTC format
+### Brute-Force Detection (MITRE T1110)
 
-### 2. Event Normalization
-**Input**: Heterogeneous log formats
-**Output**: Standardized schema ([event_models_new.py:4-12](app/schemas/event_models_new.py#L4-L12))
+| Parameter | Value |
+|-----------|-------|
+| Window | 60 seconds (sliding) |
+| Trigger | ≥5 failed logins from same `source_ip` against same `username` |
+| Grouping | `(source_ip, username)` pairs |
+| Severity | Low (5-9), Medium (10-19), High (≥20) |
+| Confidence | 70% / 85% / 95% (scaled by attempt count) |
+
+### Credential Abuse / Password Spraying (MITRE T1110.003)
+
+| Parameter | Value |
+|-----------|-------|
+| Window | 60 seconds (sliding) |
+| Trigger | ≥8 failures from same `source_ip` across ≥5 distinct usernames |
+| Grouping | `source_ip` only |
+| Severity | High (5-15 users), Critical (>15 users) |
+| Confidence | 90% (fixed) |
+
+Both rules produce deterministic incident IDs via SHA-256 hashing of detection parameters, ensuring identical inputs always yield identical output.
+
+Configurable thresholds in [detection.py](app/services/detection.py):
+
+```python
+WINDOW_SECONDS = 60
+BRUTE_FORCE_FAILURE_THRESHOLD = 5
+CRED_ABUSE_DISTINCT_USER_THRESHOLD = 5
+CRED_ABUSE_FAILURE_THRESHOLD = 8
+```
+
+## MITRE ATT&CK Mapping
+
+Every incident is automatically annotated with structured MITRE metadata:
+
+| Rule | Tactic | Technique | Sub-technique |
+|------|--------|-----------|---------------|
+| Brute-force | Credential Access | T1110 | -- |
+| Password spraying | Credential Access | T1110.003 | Password Spraying |
+
+Incidents include a `mitre` object with `tactic`, `technique`, and `technique_name` fields, populated via Pydantic model validators at creation time.
+
+## Entity Risk Model
+
+Risk scores are maintained per entity (`source_ip` or `username`) using weighted accumulation with exponential decay:
+
+| Detection type | Weight |
+|---------------|--------|
+| Brute-force incident | +10.0 |
+| Credential abuse incident | +25.0 |
+
+**Decay**: 24-hour half-life using `score * exp(-ln(2)/24 * hours_elapsed)`.
+
+Scores are thread-safe (protected by module-level lock) and rehydrated from persisted incidents on startup. The `GET /entity-risk/` endpoint returns `risk_score`, `total_incidents`, `open_incidents`, `highest_confidence`, and `last_seen` per entity.
+
+## Incident Lifecycle
+
+Incidents follow a managed state machine with persistence to `runs/incidents.json`:
+
+```
+    ┌──────┐    acknowledge    ┌──────────────┐    close    ┌────────┐
+    │ open ├──────────────────►│ acknowledged ├────────────►│ closed │
+    └──┬───┘                   └──────────────┘             └───┬────┘
+       │                                                        │
+       │◄───────────────── auto-reopen on new evidence ─────────┘
+```
+
+**Merging behavior** when the same `incident_id` is upserted:
+- Time bounds extended (`first_seen` → earliest, `last_seen` → latest)
+- Evidence counts summed, entity sets unioned
+- Timeline and event lists concatenated
+- Closed incidents automatically reopen if new evidence arrives
+
+## Normalization & Field Mapping
+
+Field mapping is driven by [config/field_mappings.yaml](config/field_mappings.yaml) with per-source profiles:
+
+| Profile | Source | Notable mappings |
+|---------|--------|------------------|
+| `_default` | Generic JSON | Standard aliases (`source_ip`, `ip`, `client_ip`, etc.) |
+| `okta` | Okta logs | `ipAddress` → `source_ip`, `published` → `timestamp`, `outcome.result` (dot-notation) |
+| `windows_security` | Windows Event Log | `IpAddress` → `source_ip`, `SubjectUserName` → `username`, rejects EventID 4672/4634 |
+
+### Canonical fields
+
+| Field | Required | Aliases (default profile) |
+|-------|----------|---------------------------|
+| `timestamp` | Yes | `timestamp`, `time`, `@timestamp`, `ts` |
+| `source_ip` | No | `source_ip`, `ip`, `client_ip`, `src_ip`, `remote_ip` |
+| `username` | No | `username`, `user`, `user_id`, `account`, `principal` |
+| `event_type` | Yes | `event_type`, `type`, `action`, `event` |
+| `result` | Yes | `result`, `outcome`, `status` |
+| `reason` | No | `reason`, `error`, `message`, `failure_reason` |
+| `user_agent` | No | `user_agent`, `ua`, `agent` |
+| `source` | No | `source`, `provider`, `log_source`, `system` |
+
+**Telemetry rejection**: Events with types matching `heartbeat`, `health_check`, `ping`, `keepalive`, `metrics`, etc. are automatically dropped.
+
+Validate mappings: `python -m app.services.mapping_loader --validate`
+
+## API Contract
+
+| Method | Endpoint | Response model | Description |
+|--------|----------|----------------|-------------|
+| `POST` | `/ingest/` | `IngestResponse` | Ingest raw events, returns run ID and incident count |
+| `GET` | `/runs/` | `List[str]` | List all processing run IDs |
+| `GET` | `/runs/{run_id}/meta` | `RunsMetaResponse` | Run metadata (timestamp, event count) |
+| `GET` | `/runs/{run_id}/normalized` | `RunsNormalizedResponse` | Normalized events for a run |
+| `GET` | `/runs/{run_id}/incidents` | `RunsIncidentsResponse` | Detected incidents for a run |
+| `GET` | `/incidents/` | `IncidentListResponse` | All incidents across runs |
+| `GET` | `/incidents/{id}` | `LifecycleIncidentResponse` | Single incident with `is_stale` flag |
+| `PATCH` | `/incidents/{id}` | `LifecycleIncidentResponse` | Transition incident status |
+| `GET` | `/entity-risk/` | `EntityRiskResponse` | Decayed per-entity risk scores |
+| `GET` | `/metrics/` | `MetricsResponse` | Operational counters and breakdowns |
+| `GET` | `/health` | `{"ok": true}` | Health check |
+
+Response models are defined in [api_contract.py](app/schemas/api_contract.py). The contract is snapshot-tested in CI -- any unintentional change to the OpenAPI spec fails the build.
+
+### Contract lock (CI)
+
+The GitHub Actions workflow [openapi-contract.yml](.github/workflows/openapi-contract.yml) enforces API stability:
+
+1. Starts the FastAPI app
+2. Fetches `/openapi.json`
+3. Canonicalizes JSON (sorted keys, stable formatting)
+4. Diffs against committed snapshot at `openapi/openapi.snapshot.json`
+5. Fails on any diff
+
+Regenerate after intentional changes:
+
+```bash
+python scripts/export_openapi_snapshot.py
+```
+
+## Test Coverage
+
+| Test suite | File | What it validates |
+|-----------|------|-------------------|
+| Detection | [test_detection.py](tests/test_detection.py) | Brute-force triggering, threshold boundaries (4 vs 5), 60s window logic, suppression/dedup, credential abuse, dynamic severity/confidence, MITRE mapping, snapshot tests |
+| Incident lifecycle | [test_incident_lifecycle.py](tests/test_incident_lifecycle.py) | Status transitions (open → acknowledged → closed), merging, auto-reopen, persistence round-trip, timestamp management |
+| Entity risk | [test_entity_risk.py](tests/test_entity_risk.py) | Accumulation by type (+10/+25), 24h half-life decay, entity aggregation, confidence tracking, open incident counts |
+| Field mapping | [test_mapping.py](tests/test_mapping.py) | Default profile completeness, alias resolution, telemetry rejection, Okta profile, unknown source fallback, config validation |
+| API contract | [test_backend_contract.py](tests/test_backend_contract.py) | Response schema validation against Pydantic models |
+| Frontend contract | [test_frontend_contract_fidelity.py](tests/test_frontend_contract_fidelity.py) | Dashboard data alignment with backend schemas |
+
+```bash
+pytest tests/ -v
+```
+
+## Quickstart
+
+### Prerequisites
+
+- Python 3.10+
+- Node.js 18+ (for dashboard)
+
+### Backend
+
+```bash
+python -m venv .venv
+source .venv/bin/activate        # macOS/Linux
+# .venv\Scripts\activate         # Windows
+
+pip install -r requirements.txt
+uvicorn app.main:main --reload --port 8000
+```
+
+### Dashboard
+
+```bash
+cd dashboard
+npm install
+npm run build    # Production build (served by FastAPI at /)
+npm run dev      # Development server on :5173
+```
+
+### Ingest events
+
+```bash
+curl -X POST http://localhost:8000/ingest/ \
+  -H "Content-Type: application/json" \
+  -d '[
+    {"timestamp":"2025-12-21T05:00:00Z","source_ip":"203.0.113.10","username":"alice","event_type":"login_attempt","result":"failure","reason":"bad_password","source":"demo"},
+    {"timestamp":"2025-12-21T05:00:01Z","source_ip":"203.0.113.10","username":"alice","event_type":"login_attempt","result":"failure","reason":"bad_password","source":"demo"},
+    {"timestamp":"2025-12-21T05:00:02Z","source_ip":"203.0.113.10","username":"alice","event_type":"login_attempt","result":"failure","reason":"bad_password","source":"demo"},
+    {"timestamp":"2025-12-21T05:00:03Z","source_ip":"203.0.113.10","username":"alice","event_type":"login_attempt","result":"failure","reason":"bad_password","source":"demo"},
+    {"timestamp":"2025-12-21T05:00:04Z","source_ip":"203.0.113.10","username":"alice","event_type":"login_attempt","result":"failure","reason":"bad_password","source":"demo"}
+  ]'
+```
+
+Response:
+
 ```json
 {
-  "timestamp": "2025-12-21T05:00:00Z",
-  "source_ip": "203.0.113.10",
-  "username": "alice",
-  "event_type": "login_attempt",
-  "result": "failure",
-  "reason": "bad_password",
-  "user_agent": "Mozilla/5.0",
-  "source": "auth_service"
+  "run_id": "run-073d148ae4d443099bfbc064dcd0c1c9",
+  "event_count": 5,
+  "normalization_status": "success",
+  "detection_status": "success",
+  "incident_count": 1,
+  "incidents": [...]
 }
 ```
 
-### 3. Threat Detection
+### Retrieve results
 
-#### Brute-Force Detection (MITRE T1110)
-- **Trigger**: ≥5 failed login attempts from the same source IP against the same username within 60 seconds
-- **Severity**: Dynamic (low: 5-9 attempts, medium: 10-19, high: ≥20)
-- **Confidence**: Scaled by attempt count (70-95%)
+```bash
+curl http://localhost:8000/runs/                          # List runs
+curl http://localhost:8000/runs/{run_id}/incidents        # Incidents for a run
+curl http://localhost:8000/incidents/                      # All incidents
+curl http://localhost:8000/entity-risk/                    # Risk scores
+curl http://localhost:8000/metrics/                        # Operational metrics
+```
 
-#### Credential Abuse Detection (MITRE T1110.003 - Password Spraying)
-- **Trigger**: ≥8 failed login attempts from the same source IP across ≥5 distinct usernames within 60 seconds
-- **Severity**: High (≥5 users), Critical (≥15 users)
-- **Confidence**: 90%
+## Incident Structure
 
-### 4. Explainable Incidents
-All incidents include:
-- **Deterministic IDs**: SHA-256 based on detection parameters (IP, username, window, counts)
-- **Human-readable summary**: Generated from templates ([detection.py:36-60](app/services/detection.py#L36-L60))
-- **Recommended actions**: 4-step investigation and response guide
-- **Complete evidence**: Window bounds, event counts, full event timeline with timestamps
-
-Example incident structure:
 ```json
 {
   "incident_id": "inc_a1b2c3d4e5f67890abcdef12",
   "type": "brute_force",
-  "mitre_technique": "T1110",
-  "severity": "high",
-  "confidence": "95",
-  "summary": "Brute-force authentication activity detected (MITRE T1110): 20 failed login attempts against user 'alice' from source IP 203.0.113.10 during 2025-12-21T05:00:00Z–2025-12-21T05:00:59Z, exceeding brute-force threshold.",
-  "recommended_actions": [
-    "Validate whether the source IP and login pattern are expected for this user (VPNs, known locations, automation).",
-    "Review authentication activity before and after the detection window to identify escalation or successful access.",
-    "Assess account controls (lockout behavior, MFA enforcement) and confirm whether the user experienced authentication issues.",
-    "If activity is unauthorized, follow response policy: reset credentials, revoke active sessions, and apply network controls as appropriate."
-  ],
-  "subject": {
-    "source_ip": "203.0.113.10",
-    "username": "alice"
+  "status": "open",
+  "severity": "low",
+  "confidence": "70",
+  "mitre": {
+    "tactic": "Credential Access",
+    "technique": "T1110",
+    "technique_name": "Brute Force"
   },
+  "summary": "Brute-force authentication activity detected (MITRE T1110): 5 failed login attempts against user 'alice' from source IP 203.0.113.10 during 2025-12-21T05:00:00Z\u20132025-12-21T05:00:04Z, exceeding brute-force threshold.",
+  "recommended_actions": [
+    "Validate whether the source IP and login pattern are expected for this user.",
+    "Review authentication activity before and after the detection window.",
+    "Assess account controls (lockout behavior, MFA enforcement).",
+    "If unauthorized, follow response policy: reset credentials, revoke sessions, apply network controls."
+  ],
+  "affected_entities": ["203.0.113.10", "alice"],
   "evidence": {
     "window_start": "2025-12-21T05:00:00Z",
-    "window_end": "2025-12-21T05:00:59Z",
-    "counts": { "failures": 20 },
-    "timeline": [...],
-    "events": [...]
-  }
+    "window_end": "2025-12-21T05:00:04Z",
+    "counts": { "failures": 5 },
+    "timeline": ["..."],
+    "events": ["..."]
+  },
+  "first_seen": "2025-12-21T05:00:00Z",
+  "last_seen": "2025-12-21T05:00:04Z"
 }
 ```
-
-## Installation
-
-### Prerequisites
-- Python 3.8+
-- Node.js 16+ (for dashboard)
-
-### Backend Setup
-```bash
-# Create virtual environment
-python -m venv .venv
-.venv\Scripts\activate  # Windows
-# source .venv/bin/activate  # macOS/Linux
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run FastAPI server
-uvicorn app.main:main --reload --port 8000
-```
-
-### Dashboard Setup
-```bash
-cd dashboard
-npm install
-npm run dev  # Development server
-npm run build  # Production build
-```
-
-## Usage
-
-### 1. Ingest Events
-```bash
-curl -X POST http://localhost:8000/ingest/ \
-  -H "Content-Type: application/json" \
-  -d @sample.json
-```
-
-**Response:**
-```json
-{
-  "run_id": "run-073d148ae4d443099bfbc064dcd0c1c9",
-  "event_count": 2,
-  "normalization_status": "success",
-  "detection_status": "success"
-}
-```
-
-### 2. List All Runs
-```bash
-curl http://localhost:8000/runs/
-```
-
-### 3. Retrieve Normalized Events
-```bash
-curl http://localhost:8000/runs/{run_id}/normalized
-```
-
-### 4. Retrieve Detected Incidents
-```bash
-curl http://localhost:8000/runs/{run_id}/incidents
-```
-
-### 5. View Dashboard
-Navigate to `http://localhost:8000/` (after building dashboard with `npm run build`)
-
-## API Reference
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/ingest/` | Ingest raw authentication events |
-| `GET` | `/runs/` | List all processing runs |
-| `GET` | `/runs/{run_id}/meta` | Get run metadata (timestamp, event count) |
-| `GET` | `/runs/{run_id}/normalized` | Get normalized events for a run |
-| `GET` | `/runs/{run_id}/incidents` | Get detected incidents for a run |
-| `GET` | `/health` | Health check endpoint |
-
-## Data Pipeline
-
-Each ingestion creates a **run** with the following artifacts in `runs/{run_id}/`:
-
-1. **raw.json**: Original ingested events
-2. **meta.json**: Run metadata (timestamp, event count)
-3. **normalized.json**: Events normalized to common schema
-4. **incidents.json**: Detected security incidents with evidence
-
-## Detection Parameters
-
-Configurable thresholds in [detection.py:19-22](app/services/detection.py#L19-L22):
-
-```python
-WINDOW_SECONDS = 60                      # Sliding window size
-BRUTE_FORCE_FAILURE_THRESHOLD = 5        # Min failures for brute-force
-CRED_ABUSE_DISTINCT_USER_THRESHOLD = 5   # Min distinct users for cred abuse
-CRED_ABUSE_FAILURE_THRESHOLD = 8         # Min total failures for cred abuse
-```
-
-## Testing
-
-```bash
-# Run tests
-pytest tests/
-
-# Run specific test
-pytest tests/test_detection.py -v
-```
-
-**Test Coverage**: Validates deterministic incident generation, schema compliance, and evidence completeness ([test_detection.py](tests/test_detection.py)).
 
 ## Project Structure
 
 ```
 defensive-translator/
 ├── app/
-│   ├── main.py                 # FastAPI application entry point
+│   ├── main.py                    # FastAPI entry point, mounts dashboard static files
 │   ├── routes/
-│   │   ├── ingest.py           # Event ingestion endpoint
-│   │   └── retrieval.py        # Run retrieval endpoints
+│   │   ├── ingest.py              # POST /ingest/ - event ingestion pipeline
+│   │   ├── retrieval.py           # GET /runs/* - artifact retrieval
+│   │   ├── incidents.py           # GET|PATCH /incidents/* - lifecycle management
+│   │   ├── entity_risk.py         # GET /entity-risk/ - risk scoring
+│   │   └── metrics.py             # GET /metrics/ - operational counters
 │   ├── services/
-│   │   ├── normalization.py    # Log normalization logic
-│   │   └── detection.py        # Threat detection algorithms
+│   │   ├── normalization.py       # Field mapping, timestamp coercion, validation
+│   │   ├── detection.py           # Sliding window rules, incident generation
+│   │   ├── incident_store.py      # Stateful persistence, merging, transitions
+│   │   ├── entity_risk.py         # Weighted scoring with exponential decay
+│   │   ├── metrics.py             # Thread-safe counter aggregation
+│   │   └── mapping_loader.py      # YAML config loader with validation
 │   └── schemas/
-│       ├── event_models_new.py # Normalized event schema
-│       └── incident_new.py     # Incident schema
-├── dashboard/                  # React + Vite frontend
-├── runs/                       # Processing run artifacts
-├── tests/                      # Pytest test suite
-├── requirements.txt            # Python dependencies
-└── README.md
+│       ├── event_models_new.py    # NormalizedEventNew (Pydantic v2)
+│       ├── incident_new.py        # IncidentNew with MITRE fields
+│       └── api_contract.py        # Response envelope models
+├── config/
+│   └── field_mappings.yaml        # Source-specific field alias profiles
+├── dashboard/                     # React 19 + Vite + Tailwind CSS
+│   ├── src/
+│   │   ├── SecurityWorkflow.jsx   # Main dashboard component
+│   │   └── components/            # SocWorkflowTable, etc.
+│   └── dist/                      # Production build (mounted by FastAPI)
+├── tests/                         # Pytest suite (6 modules)
+├── scripts/
+│   ├── export_openapi_snapshot.py # Regenerate OpenAPI contract snapshot
+│   ├── canonicalize_json.py       # Deterministic JSON for CI diffs
+│   └── translate_generic_json.py  # CLI helper for non-standard logs
+├── openapi/
+│   └── openapi.snapshot.json      # Committed API contract snapshot
+├── .github/workflows/
+│   └── openapi-contract.yml       # CI: contract-breaking change detection
+├── runs/                          # Run artifacts (raw, normalized, incidents per run)
+└── requirements.txt               # FastAPI, Pydantic v2, PyYAML, uvicorn
 ```
 
-## Technical Highlights
+## Data Pipeline
 
-### Deterministic Design
-- **Reproducible incident IDs**: Same input always generates same incident ID
-- **Template-based summaries**: Consistent explanations for identical detection patterns
-- **Sorted processing**: Events processed in chronological order
+Each `POST /ingest/` creates a run directory under `runs/{run_id}/` containing:
 
-### Performance Optimizations
-- **Sliding window algorithm**: O(n) time complexity for event processing
-- **Deque-based windowing**: Efficient memory usage for temporal aggregation
-- **Schema validation**: Early rejection of malformed events
+| Artifact | Description |
+|----------|-------------|
+| `raw.json` | Original ingested events (audit trail) |
+| `meta.json` | Run metadata: timestamp, event count |
+| `normalized.json` | Events mapped to canonical schema |
+| `incidents.json` | Detected incidents with full evidence |
 
-### Security Considerations
-- **Path traversal protection**: Run ID validation prevents directory traversal attacks ([retrieval.py:8-16](app/routes/retrieval.py#L8-L16))
-- **Input validation**: Pydantic models enforce strict schema compliance
-- **CORS configuration**: Configurable for production environments
+## Startup Behavior
 
-## Development Phases
+On boot, the application:
+1. Loads and validates `config/field_mappings.yaml` (fails fast on errors)
+2. Rehydrates the incident store from `runs/incidents.json`
+3. Rebuilds entity risk scores from persisted incidents
+4. Restores metrics counters from run artifacts
 
-**Phase 1-2**: Core ingestion and normalization pipeline
-**Phase 3**: Brute-force and credential abuse detection
-**Phase 4**: Deterministic explainability with MITRE ATT&CK mappings ✅
+## Security
+
+- **Path traversal protection**: Run ID validation rejects `..`, `/`, and `\` characters
+- **Input validation**: Pydantic v2 models enforce strict schema compliance
+- **Deterministic IDs**: SHA-256 hashing prevents incident ID collision or prediction
+- **Thread safety**: All shared state protected by module-level locks
+- **CORS**: Configurable for production deployment
 
 ## License
 

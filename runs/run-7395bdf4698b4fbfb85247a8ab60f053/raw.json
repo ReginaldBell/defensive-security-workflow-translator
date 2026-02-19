@@ -1,0 +1,20 @@
+[
+  {
+    "timestamp": "2026-02-08T10:01:00Z",
+    "username": "admin",
+    "source_ip": "203.0.113.55",
+    "event_type": "login_failure"
+  },
+  {
+    "timestamp": "2026-02-08T10:01:10Z",
+    "username": "admin",
+    "source_ip": "203.0.113.55",
+    "event_type": "login_failure"
+  },
+  {
+    "timestamp": "2026-02-08T10:01:20Z",
+    "username": "admin",
+    "source_ip": "203.0.113.55",
+    "event_type": "login_success"
+  }
+]

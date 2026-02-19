@@ -1,0 +1,71 @@
+name: OpenAPI Contract
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  openapi-contract:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install uvicorn
+
+      - name: Start API
+        run: |
+          python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 > uvicorn.log 2>&1 &
+          echo $! > uvicorn.pid
+
+      - name: Wait for API readiness
+        run: |
+          for i in {1..45}; do
+            if curl -fsS http://127.0.0.1:8000/health > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "API failed to start in time"
+          cat uvicorn.log
+          exit 1
+
+      - name: Fetch and canonicalize OpenAPI
+        run: |
+          test -f openapi/openapi.snapshot.json
+          curl -fsS http://127.0.0.1:8000/openapi.json | python scripts/canonicalize_json.py > openapi/openapi.current.json
+          python scripts/canonicalize_json.py < openapi/openapi.snapshot.json > openapi/openapi.expected.json
+
+      - name: Compare OpenAPI snapshot
+        run: |
+          diff -u openapi/openapi.expected.json openapi/openapi.current.json
+
+      - name: Stop API
+        if: always()
+        run: |
+          if [ -f uvicorn.pid ]; then
+            kill "$(cat uvicorn.pid)" || true
+          fi
+
+      - name: Upload OpenAPI diff artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-contract-artifacts
+          path: |
+            uvicorn.log
+            openapi/openapi.expected.json
+            openapi/openapi.current.json

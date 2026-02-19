@@ -1,0 +1,83 @@
+[
+  {
+    "timestamp": "2026-02-19T10:10:00Z",
+    "source_ip": "203.0.113.10",
+    "username": "alice",
+    "event_type": "login_attempt",
+    "result": "failure",
+    "reason": "bad_password",
+    "source": "demo"
+  },
+  {
+    "timestamp": "2026-02-19T10:10:10Z",
+    "source_ip": "203.0.113.10",
+    "username": "alice",
+    "event_type": "login_attempt",
+    "result": "failure",
+    "reason": "bad_password",
+    "source": "demo"
+  },
+  {
+    "timestamp": "2026-02-19T10:10:20Z",
+    "source_ip": "203.0.113.10",
+    "username": "alice",
+    "event_type": "login_attempt",
+    "result": "failure",
+    "reason": "bad_password",
+    "source": "demo"
+  },
+  {
+    "timestamp": "2026-02-19T10:10:30Z",
+    "source_ip": "203.0.113.10",
+    "username": "alice",
+    "event_type": "login_attempt",
+    "result": "failure",
+    "reason": "bad_password",
+    "source": "demo"
+  },
+  {
+    "timestamp": "2026-02-19T10:10:40Z",
+    "source_ip": "203.0.113.10",
+    "username": "alice",
+    "event_type": "login_attempt",
+    "result": "failure",
+    "reason": "bad_password",
+    "source": "demo"
+  },
+  {
+    "timestamp": "2026-02-19T10:10:50Z",
+    "source_ip": "203.0.113.10",
+    "username": "alice",
+    "event_type": "login_attempt",
+    "result": "success",
+    "reason": "ok",
+    "source": "demo"
+  },
+  {
+    "timestamp": "2026-02-19T10:10:12Z",
+    "source_ip": "203.0.113.10",
+    "username": "alice",
+    "event_type": "file_access",
+    "result": "failure",
+    "reason": "denied",
+    "source": "demo"
+  },
+  {
+    "timestamp": "2026-02-19T10:10:02Z",
+    "source_ip": "203.0.113.200",
+    "username": "noise1",
+    "event_type": "login_attempt",
+    "result": "failure",
+    "reason": "bad_password",
+    "source": "demo"
+  },
+  {
+    "timestamp": "2026-02-19T10:10:22Z",
+    "source_ip": "203.0.113.200",
+    "username": "noise1",
+    "event_type": "login_attempt",
+    "result": "failure",
+    "reason": "bad_password",
+    "source": "demo"
+  }
+]

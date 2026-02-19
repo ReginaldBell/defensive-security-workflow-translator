@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from __future__ import annotations
-
 import hashlib
 import json
 from collections import deque
@@ -15,6 +13,9 @@ from app.schemas.incident_new import IncidentNew as Incident
 
 MITRE_T1110 = "T1110"
 MITRE_T1110_003 = "T1110.003"
+MITRE_TACTIC_CREDENTIAL_ACCESS = "Credential Access"
+MITRE_TECHNIQUE_BRUTE_FORCE = "Brute Force"
+MITRE_TECHNIQUE_PASSWORD_SPRAYING = "Password Spraying"
 
 WINDOW_SECONDS = 60
 BRUTE_FORCE_FAILURE_THRESHOLD = 5
@@ -103,12 +104,24 @@ def _is_failure(ev: Dict[str, Any]) -> bool:
     return isinstance(r, str) and r.lower() == "failure"
 
 
-def _severity_and_confidence(count: int) -> Tuple[str, int]:
+def _is_auth_event(ev: Dict[str, Any]) -> bool:
+    event_type = ev.get("event_type")
+    if not isinstance(event_type, str):
+        return False
+    normalized = event_type.strip().lower()
+    return (
+        "login" in normalized
+        or "auth" in normalized
+        or normalized in {"signin", "sign_in", "sign-in"}
+    )
+
+
+def _severity_and_confidence(count: int) -> Tuple[str, float]:
     if count >= 20:
-        return ("high", 95)
+        return ("high", 0.95)
     if count >= 10:
-        return ("medium", 85)
-    return ("low", 70)
+        return ("medium", 0.85)
+    return ("low", 0.70)
 
 
 def _window_bounds(window: Deque[Tuple[datetime, Dict[str, Any]]]) -> Tuple[str, str]:
@@ -157,17 +170,124 @@ def detect_incidents(normalized_events: Any) -> List[Dict[str, Any]]:
 
     validated.sort(key=lambda x: x[0])
 
-    # Sliding window over failures only
+    # Sliding window over failures only (used by credential abuse detector)
     win: Deque[Tuple[datetime, Dict[str, Any]]] = deque()
     out_incidents: List[Dict[str, Any]] = []
 
     emitted: set[str] = set()
+    incident_index_by_id: Dict[str, int] = {}
 
     window_delta = timedelta(seconds=WINDOW_SECONDS)
+    brute_force_windows: Dict[Tuple[str, str], Deque[Tuple[datetime, Dict[str, Any]]]] = {}
+    active_bruteforce: Dict[Tuple[str, str], Dict[str, Any]] = {}
 
     for dt, ev in validated:
-        if not _is_failure(ev):
+        if not _is_failure(ev) or not _is_auth_event(ev):
             continue
+
+        # Brute-force state machine: one active incident per (ip, username)
+        # per 60-second detection window anchored to the incident start.
+        ip = ev.get("source_ip")
+        user = ev.get("username")
+        if isinstance(ip, str) and ip and isinstance(user, str) and user:
+            pair = (ip, user)
+            pair_window = brute_force_windows.setdefault(pair, deque())
+            active_state = active_bruteforce.get(pair)
+
+            if active_state is not None:
+                start_dt = active_state["start_dt"]
+                if (dt - start_dt) > window_delta:
+                    active_bruteforce.pop(pair, None)
+                    pair_window.clear()
+                    active_state = None
+
+            pair_window.append((dt, ev))
+            while pair_window and (dt - pair_window[0][0]) > window_delta:
+                pair_window.popleft()
+
+            if active_state is None and len(pair_window) >= BRUTE_FORCE_FAILURE_THRESHOLD:
+                start_dt = pair_window[0][0]
+                start_ts = start_dt.isoformat().replace("+00:00", "Z")
+                end_ts = dt.isoformat().replace("+00:00", "Z")
+                entities = sorted([ip, user])
+                seed = f"brute_force|{'|'.join(entities)}|{start_ts}"
+                incident_id = _stable_incident_id(seed)
+                if incident_id in emitted:
+                    active_bruteforce[pair] = {"incident_id": incident_id, "start_dt": start_dt}
+                    continue
+
+                evidence_events = [item[1] for item in pair_window]
+                evidence_count = len(evidence_events)
+                sev, conf = _severity_and_confidence(evidence_count)
+
+                incident = {
+                    "incident_id": incident_id,
+                    "type": "brute_force",
+                    "mitre_technique": MITRE_T1110,
+                    "mitre": {
+                        "tactic": MITRE_TACTIC_CREDENTIAL_ACCESS,
+                        "technique": MITRE_T1110,
+                        "technique_name": MITRE_TECHNIQUE_BRUTE_FORCE,
+                    },
+                    "severity": sev,
+                    "confidence": conf,
+                    "first_seen": start_ts,
+                    "last_seen": end_ts,
+                    "affected_entities": entities,
+                    "evidence_count": evidence_count,
+                    "source_count": len({e.get("source") for e in evidence_events if e.get("source")}),
+                    "summary": "",
+                    "recommended_actions": [],
+                    "explanation": {
+                        "threshold": BRUTE_FORCE_FAILURE_THRESHOLD,
+                        "observed": BRUTE_FORCE_FAILURE_THRESHOLD,
+                        "window": f"{WINDOW_SECONDS}s",
+                        "trigger_field": "username",
+                    },
+                    "subject": {"source_ip": ip, "username": user},
+                    "evidence": {
+                        "window_start": start_ts,
+                        "window_end": end_ts,
+                        "counts": {"failures": evidence_count},
+                        "timeline": _event_timeline(evidence_events),
+                        "events": evidence_events,
+                    },
+                }
+
+                incident = _phase4_apply_explainability(incident)
+                try:
+                    obj = Incident(**incident)
+                    dumped = obj.model_dump(exclude_unset=True)
+                    out_incidents.append(dumped)
+                    emitted.add(incident_id)
+                    incident_index_by_id[incident_id] = len(out_incidents) - 1
+                    active_bruteforce[pair] = {"incident_id": incident_id, "start_dt": start_dt}
+                except Exception:
+                    pass
+
+            elif active_state is not None:
+                incident_id = active_state["incident_id"]
+                incident_idx = incident_index_by_id.get(incident_id)
+                if incident_idx is not None:
+                    incident = out_incidents[incident_idx]
+                    evidence_events = incident.get("evidence", {}).get("events", [])
+                    evidence_events.append(ev)
+                    evidence_count = len(evidence_events)
+
+                    sev, conf = _severity_and_confidence(evidence_count)
+                    end_ts = dt.isoformat().replace("+00:00", "Z")
+
+                    incident["last_seen"] = end_ts
+                    incident["severity"] = sev
+                    incident["confidence"] = conf
+                    incident["evidence_count"] = evidence_count
+                    incident["source_count"] = len({e.get("source") for e in evidence_events if e.get("source")})
+                    incident["evidence"]["window_end"] = end_ts
+                    incident["evidence"]["counts"]["failures"] = evidence_count
+                    incident["evidence"]["timeline"] = _event_timeline(evidence_events)
+                    incident["explanation"]["observed"] = BRUTE_FORCE_FAILURE_THRESHOLD
+                    incident = _phase4_apply_explainability(incident)
+                    out_incidents[incident_idx] = incident
 
         win.append((dt, ev))
         cutoff = dt - window_delta
@@ -175,7 +295,6 @@ def detect_incidents(normalized_events: Any) -> List[Dict[str, Any]]:
             win.popleft()
 
         # Build aggregates in the current window
-        failures_by_pair: Dict[Tuple[str, str], List[Dict[str, Any]]] = {}
         failures_by_ip: Dict[str, List[Dict[str, Any]]] = {}
 
         for _, e in win:
@@ -187,56 +306,16 @@ def detect_incidents(normalized_events: Any) -> List[Dict[str, Any]]:
                 continue
 
             failures_by_ip.setdefault(ip, []).append(e)
-            failures_by_pair.setdefault((ip, user), []).append(e)
 
-        # 1) Brute force: same ip+username
-        for (ip, user), events in failures_by_pair.items():
-            count = len(events)
-            if count < BRUTE_FORCE_FAILURE_THRESHOLD:
-                continue
-
-            start_ts, end_ts = _window_bounds(win)
-            seed = f"brute_force|{ip}|{user}|{start_ts}|{end_ts}|{count}"
-            incident_id = _stable_incident_id(seed)
-            if incident_id in emitted:
-                continue
-            emitted.add(incident_id)
-
-            sev, conf = _severity_and_confidence(count)
-
-            incident = {
-                "incident_id": incident_id,
-                "type": "brute_force",
-                "mitre_technique": MITRE_T1110,
-                "severity": sev,
-                "confidence": str(conf),
-                "summary": "",
-                "recommended_actions": [],
-                "subject": {"source_ip": ip, "username": user},
-                "evidence": {
-                    "window_start": start_ts,
-                    "window_end": end_ts,
-                    "counts": {"failures": count},
-                    "timeline": _event_timeline(events),
-                    "events": events,
-                },
-            }
-
-            incident = _phase4_apply_explainability(incident)
-            try:
-                obj = Incident(**incident)
-                out_incidents.append(obj.model_dump(exclude_unset=True))
-            except Exception:
-                continue
-
-        # 2) Credential Abuse: same IP, multiple distinct usernames
+        # Credential Abuse: same IP, multiple distinct usernames
         for ip, events in failures_by_ip.items():
             distinct_users = {e.get("username") for e in events if e.get("username")}
             count = len(events)
 
             if len(distinct_users) >= CRED_ABUSE_DISTINCT_USER_THRESHOLD and count >= CRED_ABUSE_FAILURE_THRESHOLD:
                 start_ts, end_ts = _window_bounds(win)
-                seed = f"cred_abuse|{ip}|{start_ts}|{end_ts}|{count}|{len(distinct_users)}"
+                entities = sorted([ip] + sorted(distinct_users))
+                seed = f"credential_abuse|{'|'.join(entities)}|{start_ts}"
                 incident_id = _stable_incident_id(seed)
 
                 if incident_id in emitted:
@@ -250,10 +329,26 @@ def detect_incidents(normalized_events: Any) -> List[Dict[str, Any]]:
                     "incident_id": incident_id,
                     "type": "credential_abuse",
                     "mitre_technique": MITRE_T1110_003,
+                    "mitre": {
+                        "tactic": MITRE_TACTIC_CREDENTIAL_ACCESS,
+                        "technique": MITRE_T1110_003,
+                        "technique_name": MITRE_TECHNIQUE_PASSWORD_SPRAYING,
+                    },
                     "severity": sev,
-                    "confidence": "90",
+                    "confidence": 0.90,
+                    "first_seen": start_ts,
+                    "last_seen": end_ts,
+                    "affected_entities": entities,
+                    "evidence_count": count,
+                    "source_count": len({e.get("source") for e in events if e.get("source")}),
                     "summary": "",
                     "recommended_actions": [],
+                    "explanation": {
+                        "threshold": CRED_ABUSE_FAILURE_THRESHOLD,
+                        "observed": count,
+                        "window": f"{WINDOW_SECONDS}s",
+                        "trigger_field": "source_ip",
+                    },
                     "subject": {"source_ip": ip, "username": "multiple_accounts"},
                     "evidence": {
                         "window_start": start_ts,
