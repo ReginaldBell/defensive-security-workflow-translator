@@ -1,6 +1,6 @@
 # SecureWatch Engine
 
-![Dashboard Screenshot](dashboard/src/images/SecureWatch.png)
+![Dashboard Screenshot](dashboard/src/assets/incident-registry-screenshot.png)
 
 A deterministic security event processing pipeline that ingests heterogeneous authentication logs, normalizes them through configurable field mappings, applies sliding-window threat detection with MITRE ATT&CK classification, and manages the full incident lifecycle with entity-level risk scoring.
 
